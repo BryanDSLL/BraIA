@@ -82,7 +82,7 @@ export default function Home() {
     }, 10);
     
     try {
-      const res = await fetch("http://172.16.31.176:3001/chat", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, mensagem: messageContent })
@@ -107,15 +107,72 @@ export default function Home() {
   }
 
   function formatarMensagem(texto) {
-    // Substituir aspas invertidas por aspas normais
-    texto = texto.replace(/`/g, '"');
+    // Verificar se texto existe
+    if (!texto || typeof texto !== 'string') {
+      return '';
+    }
+    
+    // Normalizar quebras de linha
+    texto = texto.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     
     const regexBloco = /```([\w]*)?\n([\s\S]*?)```/g;
     const regexInline = /`([^`]+)`/g;
-    const regexLista = /^\s*[-*]\s+(.+)$/gm;
-    const regexNegrito = /"([^"]+?)"/g;
+    const regexListaNumerada = /^\s*(\d+)\.\s+(.+)$/gm;
+    const regexListaMarcador = /^\s*[-*]\s+(.+)$/gm;
+    const regexNegrito = /\*\*([^*]+?)\*\*/g;
     const regexTitulo = /^(#{1,6})\s+(.+)$/gm;
-    const regexParagrafo = /^(?!```|#{1,6}\s|\s*[-*]\s)(.+)$/gm;
+    const regexParagrafo = /^(?!```|#{1,6}\s|\s*\d+\.\s|\s*[-*]\s)(.+)$/gm;
+    
+    // Processar texto com formatação inline
+    const processarTextoInline = (texto) => {
+      // Primeiro processar negrito em todo o texto
+      let textoComNegrito = texto;
+      const partesNegrito = [];
+      let lastBold = 0;
+      let mBold;
+      const regexNegritoLocal = /\*\*([^\*]+?)\*\*/g;
+      
+      while ((mBold = regexNegritoLocal.exec(textoComNegrito)) !== null) {
+        if (mBold.index > lastBold) {
+          partesNegrito.push(textoComNegrito.slice(lastBold, mBold.index));
+        }
+        partesNegrito.push(
+          <strong key={`bold-${mBold.index}`} className="font-bold text-white">{mBold[1]}</strong>
+        );
+        lastBold = regexNegritoLocal.lastIndex;
+      }
+      if (lastBold < textoComNegrito.length) {
+        partesNegrito.push(textoComNegrito.slice(lastBold));
+      }
+      
+      // Depois processar código inline nas partes de texto
+      const resultado = [];
+      partesNegrito.forEach((parte, index) => {
+        if (typeof parte === 'string') {
+          const subpartes = [];
+          let last = 0;
+          let m;
+          const regexInlineLocal = /`([^`]+)`/g;
+          
+          while ((m = regexInlineLocal.exec(parte)) !== null) {
+            if (m.index > last) subpartes.push(parte.slice(last, m.index));
+            subpartes.push(
+              <code key={`code-${index}-${m.index}`} className="bg-[#2a1f3d] text-[#e0c3fc] px-2 py-1 rounded text-sm font-mono border border-[#b18fff]/20">
+                {m[1]}
+              </code>
+            );
+            last = regexInlineLocal.lastIndex;
+          }
+          if (last < parte.length) subpartes.push(parte.slice(last));
+          
+          resultado.push(...subpartes);
+        } else {
+          resultado.push(parte);
+        }
+      });
+      
+      return resultado;
+    };
     
     let partes = [];
     let lastIndex = 0;
@@ -127,43 +184,69 @@ export default function Home() {
         partes.push(texto.slice(lastIndex, match.index));
       }
       
-      const language = match[1] || 'txt';
+      const rawLanguage = match[1] || '';
       const code = match[2];
-      const filename = `codigo.${language === '' ? 'txt' : language}`;
+      
+      // Mapear linguagens para o Prism
+      const languageMap = {
+        'py': 'python',
+        'js': 'javascript',
+        'ts': 'typescript',
+        'jsx': 'jsx',
+        'tsx': 'tsx',
+        'html': 'html',
+        'css': 'css',
+        'json': 'json',
+        'sql': 'sql',
+        'bash': 'bash',
+        'sh': 'bash',
+        'powershell': 'powershell',
+        'ps1': 'powershell'
+      };
+      
+      const language = rawLanguage ? (languageMap[rawLanguage.toLowerCase()] || rawLanguage.toLowerCase()) : 'text';
+      const displayLanguage = rawLanguage || 'text';
+      const filename = `codigo.${rawLanguage || 'txt'}`;
       
       partes.push(
-        <div key={match.index} className="relative group">
-          <SyntaxHighlighter
-            language={language === '' ? 'text' : language}
-            style={vscDarkPlus}
-            customStyle={{
-              backgroundColor: '#0a0612',
-              border: '1px solid #7c3aed55',
-              borderRadius: '8px',
-              margin: '8px 0',
-              padding: '16px',
-              fontSize: '14px',
-              fontFamily: 'Consolas, Monaco, "Courier New", monospace'
-            }}
-            codeTagProps={{
-              style: {
-                fontFamily: 'Consolas, Monaco, "Courier New", monospace'
-              }
-            }}
-          >
-            {code}
-          </SyntaxHighlighter>
-          <button
-            onClick={() => downloadFile(code, filename)}
-            className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 bg-[#16121f]/80 backdrop-blur-sm text-[#b18fff] p-2 rounded-md text-xs hover:bg-[#2d1a4d]/90 hover:text-white transition-all duration-200 shadow-lg border border-[#b18fff]/20"
-            title="Baixar arquivo"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7,10 12,15 17,10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-          </button>
+        <div key={match.index} className="relative group my-6">
+          <div className="bg-[#1a1625] border border-[#b18fff]/20 rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2 bg-[#0f0a1a] border-b border-[#b18fff]/20">
+              <span className="text-xs font-medium text-[#b18fff] uppercase tracking-wide">
+                {displayLanguage}
+              </span>
+              <button
+                onClick={() => downloadFile(code, filename)}
+                className="opacity-0 group-hover:opacity-100 text-[#b18fff] hover:text-white p-1 rounded transition-all duration-200"
+                title="Baixar arquivo"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7,10 12,15 17,10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </button>
+            </div>
+            <SyntaxHighlighter
+              language={language}
+              style={vscDarkPlus}
+              customStyle={{
+                backgroundColor: '#1a1625',
+                margin: '0',
+                padding: '20px',
+                fontSize: '14px',
+                fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+                lineHeight: '1.5'
+              }}
+              codeTagProps={{
+                style: {
+                  fontFamily: 'Consolas, Monaco, "Courier New", monospace'
+                }
+              }}
+            >
+              {code}
+            </SyntaxHighlighter>
+          </div>
         </div>
       );
       lastIndex = regexBloco.lastIndex;
@@ -180,32 +263,56 @@ export default function Home() {
           const nivel = tituloMatch[1].length;
           const textoTitulo = tituloMatch[2];
           const tamanhoClasses = {
-            1: "text-2xl font-bold text-[#b18fff] mt-6 mb-4",
-            2: "text-xl font-bold text-[#b18fff] mt-5 mb-3",
-            3: "text-lg font-bold text-[#b18fff] mt-4 mb-2",
-            4: "text-base font-bold text-[#b18fff] mt-3 mb-2",
-            5: "text-sm font-bold text-[#b18fff] mt-2 mb-1",
-            6: "text-xs font-bold text-[#b18fff] mt-2 mb-1"
+            1: "text-2xl font-bold text-white mt-8 mb-4 border-b border-[#b18fff]/30 pb-2",
+            2: "text-xl font-bold text-white mt-6 mb-3",
+            3: "text-lg font-semibold text-[#b18fff] mt-5 mb-3",
+            4: "text-base font-semibold text-[#b18fff] mt-4 mb-2",
+            5: "text-sm font-semibold text-[#b18fff] mt-3 mb-2",
+            6: "text-xs font-semibold text-[#b18fff] mt-2 mb-1"
           };
-          return <div key={i} className={tamanhoClasses[nivel]}>{textoTitulo}</div>;
+          return <div key={i} className={tamanhoClasses[nivel]}>{processarTextoInline(textoTitulo)}</div>;
         }
         
-        // Processar listas
-        const lista = [];
-        let lastList = 0;
-        let mList;
-        let isList = false;
-        while ((mList = regexLista.exec(parte)) !== null) {
-          isList = true;
-          if (mList.index > lastList) lista.push(parte.slice(lastList, mList.index));
-          lista.push(
-            <li key={mList.index} className="ml-6 list-disc text-[#b18fff] leading-relaxed mb-1">{mList[1]}</li>
+        // Processar listas numeradas
+        const listaNumerada = [];
+        let lastNumList = 0;
+        let mNumList;
+        let isNumList = false;
+        while ((mNumList = regexListaNumerada.exec(parte)) !== null) {
+          isNumList = true;
+          if (mNumList.index > lastNumList) listaNumerada.push(parte.slice(lastNumList, mNumList.index));
+          listaNumerada.push(
+            <li key={mNumList.index} className="ml-4 mb-2 leading-relaxed text-[#eee]">
+              <span className="font-semibold text-[#b18fff] mr-2">{mNumList[1]}.</span>
+              {processarTextoInline(mNumList[2])}
+            </li>
           );
-          lastList = regexLista.lastIndex;
+          lastNumList = regexListaNumerada.lastIndex;
         }
-        if (isList) {
-          if (lastList < parte.length) lista.push(parte.slice(lastList));
-          return <ul key={i} className="mb-2">{lista}</ul>;
+        if (isNumList) {
+          if (lastNumList < parte.length) listaNumerada.push(parte.slice(lastNumList));
+          return <ol key={i} className="mb-4 space-y-1">{listaNumerada}</ol>;
+        }
+        
+        // Processar listas com marcadores
+        const listaMarcador = [];
+        let lastMarkList = 0;
+        let mMarkList;
+        let isMarkList = false;
+        while ((mMarkList = regexListaMarcador.exec(parte)) !== null) {
+          isMarkList = true;
+          if (mMarkList.index > lastMarkList) listaMarcador.push(parte.slice(lastMarkList, mMarkList.index));
+          listaMarcador.push(
+            <li key={mMarkList.index} className="ml-4 mb-2 leading-relaxed text-[#eee] flex items-start">
+              <span className="text-[#b18fff] mr-3 mt-1 text-sm">•</span>
+              <span>{processarTextoInline(mMarkList[1])}</span>
+            </li>
+          );
+          lastMarkList = regexListaMarcador.lastIndex;
+        }
+        if (isMarkList) {
+          if (lastMarkList < parte.length) listaMarcador.push(parte.slice(lastMarkList));
+          return <ul key={i} className="mb-4 space-y-1">{listaMarcador}</ul>;
         }
         // Verificar se é um parágrafo
         const paragrafos = [];
@@ -213,53 +320,23 @@ export default function Home() {
         let mPara;
         let isParagrafo = false;
         
-        // Processar texto com formatação inline
-        const processarTextoInline = (texto) => {
-          const subpartes = [];
-          let last = 0;
-          let m;
-          while ((m = regexInline.exec(texto)) !== null) {
-            if (m.index > last) subpartes.push(texto.slice(last, m.index));
-            subpartes.push(
-              <code key={m.index} className="bg-[#16121f] text-[#b18fff] px-1.5 py-0.5 rounded text-sm mx-1">
-                {m[1]}
-              </code>
-            );
-            last = regexInline.lastIndex;
-          }
-          let textoFinal = last < texto.length ? texto.slice(last) : "";
-          let negritoPartes = [];
-          let lastBold = 0;
-          let mBold;
-          while ((mBold = regexNegrito.exec(textoFinal)) !== null) {
-            if (mBold.index > lastBold) negritoPartes.push(textoFinal.slice(lastBold, mBold.index));
-            negritoPartes.push(
-              <b key={mBold.index} className="font-bold text-[#b18fff]">{mBold[1]}</b>
-            );
-            lastBold = regexNegrito.lastIndex;
-          }
-          if (lastBold < textoFinal.length) negritoPartes.push(textoFinal.slice(lastBold));
-          subpartes.push(...negritoPartes);
-          return subpartes;
-        };
-        
         // Verificar se o texto contém múltiplos parágrafos
         while ((mPara = regexParagrafo.exec(parte)) !== null) {
           isParagrafo = true;
           if (mPara.index > lastPara) paragrafos.push(parte.slice(lastPara, mPara.index));
           paragrafos.push(
-            <p key={mPara.index} className="mb-4">{processarTextoInline(mPara[1])}</p>
+            <p key={mPara.index} className="mb-4 leading-relaxed text-[#eee]">{processarTextoInline(mPara[1])}</p>
           );
           lastPara = regexParagrafo.lastIndex;
         }
         
         if (isParagrafo) {
           if (lastPara < parte.length) paragrafos.push(parte.slice(lastPara));
-          return <div key={i} className="space-y-2">{paragrafos}</div>;
+          return <div key={i} className="space-y-3">{paragrafos}</div>;
         }
         
         // Se não for parágrafo, processar normalmente
-        return <span key={i}>{processarTextoInline(parte)}</span>;
+        return <div key={i} className="leading-relaxed text-[#eee]">{processarTextoInline(parte)}</div>;
       }
       return parte;
     });
@@ -306,13 +383,21 @@ export default function Home() {
           <div
             key={idx}
             className={
-              (item.autor === "Você"
-                ? "self-end bg-[#16121f] text-[#e2d6ff] rounded-2xl rounded-br-md border border-[#7c3aed33]"
-                : "self-start bg-[#2d1a4d] text-[#b18fff] rounded-2xl rounded-bl-md") +
-              " px-5 py-3 max-w-2xl text-base shadow-md mb-1 leading-relaxed"
+              item.autor === "Você"
+                ? "self-end bg-[#16121f] text-[#e2d6ff] rounded-2xl rounded-br-md border border-[#7c3aed33] px-5 py-3 max-w-2xl text-base shadow-md mb-1 leading-relaxed"
+                : "self-start text-[#e2d6ff] mb-4 max-w-full text-base leading-relaxed"
             }
           >
-            <span className="font-semibold text-xs opacity-70 block mb-1">{item.autor}</span>
+            {item.autor === "Você" && <span className="font-semibold text-xs opacity-70 block mb-1">{item.autor}</span>}
+            {item.autor === "Bra.IA" && (
+               <span className="font-semibold text-sm text-[#b18fff] block mb-2 flex items-center gap-2">
+                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                   <path d="M12 2L13.09 8.26L22 9L13.09 9.74L12 16L10.91 9.74L2 9L10.91 8.26L12 2Z" fill="currentColor" opacity="0.8"/>
+                   <path d="M12 6L12.5 10.5L17 11L12.5 11.5L12 16L11.5 11.5L7 11L11.5 10.5L12 6Z" fill="currentColor"/>
+                 </svg>
+                 {item.autor}
+               </span>
+             )}
             {item.arquivo && (
               <div className="bg-[#16121f] px-3 py-2 rounded mb-2 text-sm">
                 📎 {item.arquivo.nome}
