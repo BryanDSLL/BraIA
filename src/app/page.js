@@ -12,17 +12,7 @@ export default function Home() {
   const chatRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  function downloadFile(content, filename) {
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-  }
+
 
   function handleFileSelect(e) {
     const file = e.target.files[0];
@@ -215,17 +205,6 @@ export default function Home() {
               <span className="text-xs font-medium text-[#b18fff] uppercase tracking-wide">
                 {displayLanguage}
               </span>
-              <button
-                onClick={() => downloadFile(code, filename)}
-                className="opacity-0 group-hover:opacity-100 text-[#b18fff] hover:text-white p-1 rounded transition-all duration-200"
-                title="Baixar arquivo"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7,10 12,15 17,10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-              </button>
             </div>
             <SyntaxHighlighter
               language={language}
