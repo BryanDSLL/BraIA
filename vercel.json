@@ -1,7 +1,4 @@
 {
-  "env": {
-    "OPENROUTER_API_KEY": "@openrouter-api-key"
-  },
   "functions": {
     "src/app/api/chat/route.js": {
       "maxDuration": 30
