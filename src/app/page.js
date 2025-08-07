@@ -369,7 +369,7 @@ export default function Home() {
           >
             {item.autor === "Você" && <span className="font-semibold text-xs opacity-70 block mb-1">{item.autor}</span>}
             {item.autor === "Bra.IA" && (
-               <span className="font-semibold text-sm text-[#b18fff] block mb-2 flex items-center gap-2">
+               <span className="font-semibold text-sm text-[#b18fff] flex items-center gap-2 mb-2">
                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                    <path d="M12 2L13.09 8.26L22 9L13.09 9.74L12 16L10.91 9.74L2 9L10.91 8.26L12 2Z" fill="currentColor" opacity="0.8"/>
                    <path d="M12 6L12.5 10.5L17 11L12.5 11.5L12 16L11.5 11.5L7 11L11.5 10.5L12 6Z" fill="currentColor"/>
