@@ -445,7 +445,7 @@ export default function Home() {
         </button>
       </div>
         <div className="mt-4 text-[#b18fff55] text-xs tracking-wide">
-          <a href="https://github.com/bryandsll" target="_blank" rel="noopener noreferrer" className=" hover:text-white transition-colors">Developed by github.com/BryanDSLL</a>
+          <a href="https://github.com/BryanDSLL/BraIA" target="_blank" rel="noopener noreferrer" className=" hover:text-white transition-colors">Developed by github.com/BryanDSLL</a>
         </div>
       </div>
       </main>
